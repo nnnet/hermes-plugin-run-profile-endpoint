@@ -1,0 +1,32 @@
+name: run-profile-endpoint
+kind: standalone
+version: 0.1.0
+description: |
+  Мост к внешним системам: POST /api/v1/run-profile.
+
+  Внешний оркестратор (n8n, LangGraph, MC pipeline, curl) отдаёт
+  единицу работы → мост создаёт задачу на kanban-доске bridge-runs →
+  диспетчер Гермеса спавнит профиль → исполнитель доделывает →
+  ответ возвращается обратно.
+
+  Два режима: sync (блокирует пока готово) или async (возвращает
+  run_id для опроса GET /api/v1/run-profile/<run_id>).
+
+  Состояние: **спящий**. Функции готовы, но aiohttp handlers нигде
+  не зарегистрированы — нужен крючок в api_server для регистрации
+  своих route. До переноса на release tag wire-up был в нашем
+  старом overlay overrides/hermes_cli/kanban_db.py, который дропнут.
+
+  Пути восстановления:
+  1. Upstream PR — добавить в gateway/platforms/api_server.py:start()
+     событие "before app.start" или метод register_routes(callable)
+     с поиском плагинов которые предоставляют route-handlers.
+  2. Отдельный плагин hermes-plugin-aiohttp-routes-bootstrap —
+     wrap api_server start, регистрирует routes из всех плагинов
+     которые предоставляют get_routes(). Это уже monkey-patch.
+  3. Side-channel — отдельный aiohttp процесс на другом порту, UI
+     бьёт туда. Не требует upstream-cooperation, но дублирует
+     инфраструктуру.
+
+author: nnnet/AiManager
+repo: https://github.com/nnnet/hermes-plugin-run-profile-endpoint
